@@ -15,6 +15,13 @@ module mycpu_single_tb;
         	#(PERIOD/2) clk = ~clk;
         $finish;
     end
+    
+    initial
+    begin
+        rst = 1;
+        #(PERIOD)
+        rst = 0;
+    end
 
 
 endmodule

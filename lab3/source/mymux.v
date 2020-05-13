@@ -1,7 +1,7 @@
 module mux
 #(parameter N = 32)
 (
-    input [1:0]i_sel,
+    input i_sel,
     input [N-1:0]num0,num1,
     output [N-1:0]o_m
 );

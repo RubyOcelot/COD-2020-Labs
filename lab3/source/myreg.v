@@ -14,13 +14,18 @@ reg [WIDTH-1:0] reg_storage [0:31];
 reg [WIDTH-1:0] reg_rd0, reg_rd1;
 assign rd0=reg_rd0;
 assign rd1=reg_rd1;
+
+initial begin
+$readmemh("register_file.vec", reg_storage);
+end
 always @(*) begin
     reg_rd0=reg_storage[ra0];
     reg_rd1=reg_storage[ra1];
 end
 always @(posedge clk ) begin
     if(we) begin
-        reg_storage[wa]<=wd;
+        if(wa!=5'd0)
+            reg_storage[wa]<=wd;
     end
 end
 endmodule
