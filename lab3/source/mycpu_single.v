@@ -3,7 +3,9 @@ module cpu_one_cycle	//单周期CPU
 input rst,				//异步复位，高电平有效
 output [11:0]status,
 output [31:0]m_data,rf_data,
-input [15:0]m_rf_addr
+input [15:0]m_rf_addr,
+input [2:0]i_sel,
+output reg [31:0]o_sel_data
 );
 
 reg [31:0]pc=32'd0;
@@ -24,12 +26,40 @@ wire [31:0]alu_in_2_sext;
 
 //dbg
 assign status={jump, branch, regdst, regwrite, memread, memtoreg, memwrite, aluop, alusrc, zero};
+always @(*) begin
+    case (i_sel)
+        3'd1: begin
+            o_sel_data<=pc;
+        end
+        3'd2: begin
+            o_sel_data<=pc_next;
+        end
+        3'd3: begin
+            o_sel_data<=instruction;
+        end
+        3'd4: begin
+            o_sel_data<=read_reg_data_1;
+        end
+        3'd5: begin
+            o_sel_data<=read_reg_data_1;
+        end
+        3'd6: begin
+            o_sel_data<=alu_result;
+        end
+        3'd7: begin
+            o_sel_data<=read_mem_data;
+        end
+        default: begin
+            
+        end
+    endcase
+end
 
 //instruction rom
 dist_rom ins_rom(.a(pc[9:2]), .spo(instruction));
 
 //reg file
-register_file #(32) my_rf(.clk(clk), .ra0(instruction[25:21]), .rd0(read_reg_data_1), .ra1(instruction[20:16]), .rd1(read_reg_data_2), .wa(write_reg_addr), .we(regwrite), .wd(write_reg_data));
+register_file #(32) my_rf(.clk(clk), .ra0(instruction[25:21]), .rd0(read_reg_data_1), .ra1(instruction[20:16]), .rd1(read_reg_data_2), .wa(write_reg_addr), .we(regwrite), .wd(write_reg_data),.dbgra(m_rf_addr[4:0]),.dbgrd(rf_data));
 
 mux #(5) write_register_addr_mux(.i_sel(regdst),.num0(instruction[20:16]),.num1(instruction[15:11]),.o_m(write_reg_addr));
 mux #(32) write_register_data_mux(.i_sel(memtoreg),.num0(alu_result),.num1(read_mem_data),.o_m(write_reg_data));
@@ -89,7 +119,7 @@ alu #(32) arith_ALU(.y(alu_result),.zf(zero),.a(read_reg_data_1),.b(alu_in_2),.m
 
 
 //data memory
-dist_ram data_ram(.clk(clk), .we(memwrite), .d(read_reg_data_2), .a(alu_result[9:2]), .spo(read_mem_data));
+dist_ram data_ram(.clk(clk), .we(memwrite), .d(read_reg_data_2), .a(alu_result[9:2]), .spo(read_mem_data), .dpra(m_rf_addr[9:2]), .dpo(m_data));
 
 //pc mux
 mux #(32) pc_mux_1(.i_sel(pc_mux_1_sel),.num0(pc_plus),.num1(pc_br),.o_m(pc_mux_1_out));
