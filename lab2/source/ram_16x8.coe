@@ -1,0 +1,4 @@
+memory_initialization_radix = 16; 
+memory_initialization_vector = 
+f4, 21, ff, AB, 01, 1, 0A, 0,
+f4, 21, ff, AB, 01, 1, A, 00; 
