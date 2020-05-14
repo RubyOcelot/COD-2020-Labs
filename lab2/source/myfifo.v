@@ -16,29 +16,26 @@ wire finish_in,finish_out;
 wai wai_in(.i_start(edge_en_in),.rst(rst),.clk(clk),.i_finish(finish_in),.o_status(wait_in));
 wai wai_out(.i_start(edge_en_out),.rst(rst),.clk(clk),.i_finish(finish_out),.o_status(wait_out));
 
-localparam ctrl_wait_i=3'd0;
-localparam ctrl_wait_o=3'd1;
+localparam ctrl_wait=3'd0;
 localparam ctrl_in_1=3'd2;
 localparam ctrl_in_2=3'd3;
-localparam ctrl_in_f=3'd4;
 localparam ctrl_out_1=3'd5;
 localparam ctrl_out_2=3'd6;
-localparam ctrl_out_f=3'd7;
 
 reg [4:0]count_r=5'd0;
 assign count=count_r;
 
-reg [2:0]ctrl_state=ctrl_wait_i,ctrl_next_state;
+reg [2:0]ctrl_state=ctrl_wait,ctrl_next_state;
 
 reg en,we;
 reg [3:0]head=4'd0,tail=4'd0;
 
-assign finish_in=(ctrl_state==ctrl_in_f);
-assign finish_out=(ctrl_state==ctrl_out_f);
+assign finish_in=(ctrl_state==ctrl_in_2);
+assign finish_out=(ctrl_state==ctrl_out_2);
 
 always @(posedge clk,posedge rst) begin
     if(rst) begin
-        ctrl_state<=ctrl_wait_i;
+        ctrl_state<=ctrl_wait;
         en<=1'b0;
         we<=1'b0;
         head<=4'd0;
@@ -51,7 +48,7 @@ end
 always@* begin
     ctrl_next_state=ctrl_state;
     case(ctrl_state)
-        ctrl_wait_i:begin
+        ctrl_wait:begin
             if(wait_in&(count_r<16))
                 ctrl_next_state=ctrl_in_1;
             else begin
@@ -59,29 +56,17 @@ always@* begin
                     ctrl_next_state=ctrl_out_1;
             end
         end
-        ctrl_wait_o:begin
-            if(wait_out&(count_r>0))
-                ctrl_next_state=ctrl_out_1;
-            else
-                ctrl_next_state=ctrl_wait_i;
-        end
         ctrl_in_1:begin
             ctrl_next_state=ctrl_in_2;
         end
         ctrl_in_2:begin
-            ctrl_next_state=ctrl_in_f;
-        end
-        ctrl_in_f:begin
-            ctrl_next_state=ctrl_wait_o;
+            ctrl_next_state=ctrl_wait;
         end
         ctrl_out_1:begin
             ctrl_next_state=ctrl_out_2;
         end
         ctrl_out_2:begin
-            ctrl_next_state=ctrl_out_f;
-        end
-        ctrl_out_f:begin
-            ctrl_next_state=ctrl_wait_i;
+            ctrl_next_state=ctrl_wait;
         end
     endcase
 end 
@@ -102,11 +87,9 @@ always @(posedge clk ) begin
         end
         ctrl_in_2:begin
             we<=1'b0;
+            en<=1'b0;
             tail<=tail+4'd1;
             count_r<=count_r+5'd1;
-        end
-        ctrl_in_f:begin
-            en<=1'b0;
         end
         ctrl_out_1:begin
             we<=1'b0;
@@ -115,12 +98,10 @@ always @(posedge clk ) begin
         end
         ctrl_out_2:begin
             we<=1'b0;
-            head<=head+4'd1;
-            count_r<=count_r-5'd1;
-        end
-        ctrl_out_f:begin
             en<=1'b0;
             dout_r<=dout_w;
+            head<=head+4'd1;
+            count_r<=count_r-5'd1;
         end
         default:begin
         end
