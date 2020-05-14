@@ -28,30 +28,14 @@ wire [31:0]alu_in_2_sext;
 assign status={jump, branch, regdst, regwrite, memread, memtoreg, memwrite, aluop, alusrc, zero};
 always @(*) begin
     case (i_sel)
-        3'd1: begin
-            o_sel_data<=pc;
-        end
-        3'd2: begin
-            o_sel_data<=pc_next;
-        end
-        3'd3: begin
-            o_sel_data<=instruction;
-        end
-        3'd4: begin
-            o_sel_data<=read_reg_data_1;
-        end
-        3'd5: begin
-            o_sel_data<=read_reg_data_1;
-        end
-        3'd6: begin
-            o_sel_data<=alu_result;
-        end
-        3'd7: begin
-            o_sel_data<=read_mem_data;
-        end
-        default: begin
-            
-        end
+        3'd1: o_sel_data=pc;
+        3'd2: o_sel_data=pc_next;
+        3'd3: o_sel_data=instruction;
+        3'd4: o_sel_data=read_reg_data_1;
+        3'd5: o_sel_data=read_reg_data_1;
+        3'd6: o_sel_data=alu_result;
+        3'd7: o_sel_data=read_mem_data;
+        default: begin end
     endcase
 end
 
