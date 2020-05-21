@@ -32,7 +32,7 @@ always @(*) begin
         3'd2: o_sel_data=pc_next;
         3'd3: o_sel_data=instruction;
         3'd4: o_sel_data=read_reg_data_1;
-        3'd5: o_sel_data=read_reg_data_1;
+        3'd5: o_sel_data=read_reg_data_2;
         3'd6: o_sel_data=alu_result;
         3'd7: o_sel_data=read_mem_data;
         default: begin end
