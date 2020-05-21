@@ -1,4 +1,4 @@
-module cpu_one_cycle	//单周期CPU
+module cpu_multi_cycle	//单周期CPU
 (input clk,			//时钟（上升沿有效）
 input rst,				//异步复位，高电平有效
 output [11:0]status,

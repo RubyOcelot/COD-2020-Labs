@@ -6,7 +6,7 @@ module mycpu_single_tb;
     parameter PERIOD = 10;
     parameter CYCLE = 40;
      
-    cpu_one_cycle my_cpu(.clk(clk), .rst(rst));
+    cpu_multi_cycle my_cpu(.clk(clk), .rst(rst));
     
     initial
     begin

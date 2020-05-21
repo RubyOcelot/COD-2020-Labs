@@ -9,7 +9,7 @@ module debug_unit(
     output reg [7:0]seg_sel
 );
 
-wire cpu_clk;
+wire clkd;
 reg run=0;
 wire step_edge;
 wire [11:0]status; 
@@ -76,8 +76,8 @@ always @(posedge clk ) begin
 end
 
 //run
-assign cpu_clk=clk&run;
-cpu_one_cycle my_cpu(.clk(cpu_clk), .rst(rst),.status(status),.m_data(m_data),.rf_data(rf_data),.m_rf_addr(m_rf_addr),.i_sel(sel),.o_sel_data(selected_data));
+assign clkd=clk&run;
+cpu_multi_cycle my_cpu(.clk(clkd), .rst(rst),.status(status),.m_data(m_data),.rf_data(rf_data),.m_rf_addr(m_rf_addr),.i_sel(sel),.o_sel_data(selected_data));
 
 
 assign m_rf_addr=(m_rf)?m_addr:rf_addr;
