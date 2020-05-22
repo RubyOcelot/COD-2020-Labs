@@ -1,10 +1,10 @@
 `timescale 1ns / 100ps
 
-module mycpu_single_tb;
+module mycpu_multi_tb;
     reg rst,clk;
     
     parameter PERIOD = 10;
-    parameter CYCLE = 40;
+    parameter CYCLE = 80;
      
     cpu_multi_cycle my_cpu(.clk(clk), .rst(rst));
     

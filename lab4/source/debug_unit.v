@@ -12,7 +12,7 @@ module debug_unit(
 wire clkd;
 reg run=0;
 wire step_edge;
-wire [11:0]status; 
+wire [15:0]status; 
 wire [31:0]m_data,rf_data;
 wire [15:0]m_rf_addr;
 reg [15:0]m_addr=0,rf_addr=0;
@@ -21,6 +21,7 @@ wire [31:0]selected_data,seg_num;
 wire [7:0]seg_data_all[0:7];
 reg [2:0]cur_seg;
 
+/*
 //seg
 ROM_for_seg num0(.a(seg_num[3:0]),.spo(seg_data_all[3'd0]));
 ROM_for_seg num1(.a(seg_num[7:4]),.spo(seg_data_all[3'd1]));
@@ -57,6 +58,7 @@ always @(posedge clk ) begin
     else
         cnt<=20'd0;
 end
+*/
 
 assign seg_num=(sel>3'd0)?selected_data:((m_rf)?m_data:rf_data);
 

@@ -13,23 +13,30 @@ assign  zf=~|y;
 assign  y=y_r;
 assign  cf=cf_r;
 assign  of=of_r;
+
+localparam ADD=3'b000;
+localparam SUB=3'b001;
+localparam AND=3'b010;
+localparam  OR=3'b011;
+localparam XOR=3'b100;
+
 always@(*) begin
     case (m)
-        3'b000: begin 
+        ADD: begin 
             {cf_r, y_r} = a + b;
             of_r = (~a[WIDTH-1] & ~b[WIDTH-1] & y[WIDTH-1]) | (a[WIDTH-1] & b[WIDTH-1] & ~y[WIDTH-1]) ;
         end
-        3'b001: begin 
+        SUB: begin 
             {cf_r, y_r} = a - b;
             of_r = (~a[WIDTH-1] & b[WIDTH-1] & y[WIDTH-1]) | (a[WIDTH-1] & ~b[WIDTH-1] & ~y[WIDTH-1]) ;
         end
-        3'b010: begin 
+        AND: begin 
             y_r=a&b;
         end
-        3'b011: begin 
+         OR: begin 
             y_r=a|b;
         end
-        3'b100: begin 
+        XOR: begin 
             y_r=a^b;
         end
         default: begin
