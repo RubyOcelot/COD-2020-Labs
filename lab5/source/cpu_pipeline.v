@@ -8,24 +8,38 @@ input [2:0]i_sel,
 output reg [31:0]o_sel_data
 );
 
-reg [31:0]PC=32'd0,MemoryDataRegister=32'd0,A=32'd0,B=32'd0,ALUOut=32'd0,IR=32'd0;
+//pipeline regs
+reg [31:0]PC=32'd0;
+reg [31:0]IF_ID_NPC=32'd0,IF_ID_IR=32'd0;
+reg [31:0]ID_EX_NPC=32'd0,ID_EX_IR=32'd0,ID_EX_A=32'd0,ID_EX_B=32'd0,ID_EX_IMMI=32'd0;
+reg [31:0]EX_MEM_NPC=32'd0,EX_MEM_ZF=32'd0,EX_MEM_Y=32'd0,EX_MEM_B=32'd0,EX_MEM_WA=32'd0;
+reg [31:0]MEM_WB_MDR=32'd0,MEM_WB_Y=32'd0,MEM_WB_WA=32'd0;
+
+//control regs
+wire
 
 wire [31:0]alu_result;
 wire [31:0]write_reg_data,read_reg_data_1,read_reg_data_2;
 wire [31:0]read_mem_data;
 wire [31:0]alu_in_1,alu_in_2;
 wire [4:0]write_reg_addr;
-wire PCwe,ALUZero;
-reg RegWrite;
-reg PCWriteCond,PCWrite,IorD,MemRead,MemWrite,MemtoReg,IRWrite,ALUSrcA,RegDst;
-reg [1:0]PCSource,ALUSrcB;
-reg [2:0]ALUOp,ALUm;
+//WB
+reg RegWrite,MemtoReg;
+//M
+reg Branch,MemRead,MemWrite;
+wire PCSource;
+//EX
+reg RegDst,ALUSrc;
+reg [2:0]ALUOp;
+
+
+reg [2:0]ALUm;
 wire [31:0]pc_jump,pc_next;
 wire [31:0]ins_15_0_sext,ins_15_0_sext_shift_2;
 wire [8:0]mem_addr;
 wire [5:0]Op;
 
-//dbg
+//dbg TODO
 assign status={PCSource,PCwe,IorD,MemWrite,IRWrite,RegDst,MemtoReg,RegWrite,ALUm,ALUSrcA,ALUSrcB,ALUZero};
 always @(*) begin
     case (i_sel)
@@ -41,10 +55,10 @@ always @(*) begin
 end
 
 //reg file
-register_file #(32) my_rf(.clk(clk), .ra0(IR[25:21]), .rd0(read_reg_data_1), .ra1(IR[20:16]), .rd1(read_reg_data_2), .wa(write_reg_addr), .we(RegWrite), .wd(write_reg_data),.dbgra(m_rf_addr[4:0]),.dbgrd(rf_data));
+register_file #(32) my_rf(.clk(clk), .ra0(IF_ID_IR[25:21]), .rd0(read_reg_data_1), .ra1(IF_ID_IR[20:16]), .rd1(read_reg_data_2), .wa(MEM_WB_WA), .we(RegWrite), .wd(write_reg_data),.dbgra(m_rf_addr[4:0]),.dbgrd(rf_data));
 
-mux_1 #(5) write_register_addr_mux(.i_sel(RegDst),.num0(IR[20:16]),.num1(IR[15:11]),.o_m(write_reg_addr));
-mux_1 #(32) write_register_data_mux(.i_sel(MemtoReg),.num0(ALUOut),.num1(MemoryDataRegister),.o_m(write_reg_data));
+mux_1 #(5) write_register_addr_mux(.i_sel(RegDst),.num0(ID_EX_IR[20:16]),.num1(ID_EX_IR[15:11]),.o_m(write_reg_addr));
+mux_1 #(32) write_register_data_mux(.i_sel(MemtoReg),.num0(MEM_WB_Y),.num1(MEM_WB_MDR),.o_m(write_reg_data));
 
 //control
 localparam IF=4'd0;
@@ -69,124 +83,14 @@ localparam BEQ=6'b000100;
 localparam J=6'b000010;
 
 assign Op=IR[31:26];
-reg [3:0]ctrl_state=IDLE,ctrl_state_next;
-
-always @(posedge clk or posedge rst) begin
-    if(rst)begin
-        ctrl_state<=IDLE;
-    end
-    else begin
-        ctrl_state<=ctrl_state_next;
-    end
-end
-
-always @(*) begin
-    case(ctrl_state)
-        IDLE:ctrl_state_next=IF;
-        IF:ctrl_state_next=ID;
-        ID:begin
-            case(Op)
-                LW:ctrl_state_next=MC;
-                SW:ctrl_state_next=MC;
-                ADD:ctrl_state_next=REX;
-                ADDI:ctrl_state_next=IEX;
-                BEQ:ctrl_state_next=BC;
-                J:ctrl_state_next=JC;
-            endcase
-        end
-        MC:begin
-            case(Op)
-                LW:ctrl_state_next=MAR;
-                SW:ctrl_state_next=MAW;
-            endcase
-        end
-        MAR:ctrl_state_next=WBS;
-        WBS:ctrl_state_next=IF;
-        MAW:ctrl_state_next=IF;
-        REX:ctrl_state_next=RRC;
-        RRC:ctrl_state_next=IF;
-        BC:ctrl_state_next=IF;
-        JC:ctrl_state_next=IF;
-        IEX:ctrl_state_next=IRC;
-        IRC:ctrl_state_next=IF;
-        default:begin
-            ctrl_state_next=IF;
-        end
-    endcase
-end
 
 
 always @(*) begin
-    {PCWriteCond,PCWrite,IorD,MemRead,MemWrite,MemtoReg,IRWrite,PCSource,ALUOp,ALUSrcB,ALUSrcA,RegWrite,RegDst}=17'd0;
+    {RegWrite,MemtoReg,Branch,MemRead,MemWrite,RegDst,ALUOp,ALUSrc}=10'd0;
     if(!rst)
-        case (ctrl_state)
-            IF:begin
-                MemRead=1'b1;
-                IorD=1'b0;
-                IRWrite=1'b1;
-                ALUSrcA=1'b0;
-                ALUSrcB=2'b01;
-                ALUOp=3'b00;
-                PCWrite=1'b1;
-                PCSource=2'b00;
-            end
-            ID:begin
-                ALUSrcA=1'd0;
-                ALUSrcB=2'b11;
-                ALUOp=3'b00;
-            end
-            MC:begin
-                ALUSrcA=1'd1;
-                ALUSrcB=2'b10;
-                ALUOp=3'b00;
-            end
-            MAR:begin
-                MemRead=1'b1;
-                IorD=1'b1;
-            end
-            WBS:begin
-                RegDst=1'b0;
-                RegWrite=1'b1;
-                MemtoReg=1'b1;
-            end
-            MAW:begin
-                MemWrite=1'b1;
-                IorD=1'b1;
-            end
-            REX:begin
-                ALUSrcA=1'd1;
-                ALUSrcB=2'b00;
-                ALUOp=3'b10;
-            end
-            RRC:begin
-                RegDst=1'b1;
-                RegWrite=1'b1;
-                MemtoReg=1'b0;
-            end
-            BC:begin
-                ALUSrcA=1'b1;
-                ALUSrcB=2'b00;
-                ALUOp=3'b01;
-                PCWriteCond=1'b1;
-                PCSource=2'b01;
-            end
-            JC: begin
-                PCWrite=1'b1;
-                PCSource=2'b10;
-            end
-            IEX:begin
-                ALUSrcA=1'd1;
-                ALUSrcB=2'b10;
-                ALUOp=3'b00;//TODO
-            end
-            IRC:begin
-                RegDst=1'b0;
-                RegWrite=1'b1;
-                MemtoReg=1'b0;
-            end
-            default: begin
-                
-            end
+        case (IF_ID_IR[31:26])
+            : 
+            default: 
         endcase
 end
 
