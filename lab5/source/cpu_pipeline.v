@@ -12,35 +12,38 @@ output reg [31:0]o_sel_data
 reg [31:0]PC=32'd0;
 reg [31:0]IF_ID_NPC=32'd0,IF_ID_IR=32'd0;
 reg [31:0]ID_EX_NPC=32'd0,ID_EX_IR=32'd0,ID_EX_A=32'd0,ID_EX_B=32'd0,ID_EX_IMMI=32'd0;
-reg [31:0]EX_MEM_NPC=32'd0,EX_MEM_ZF=32'd0,EX_MEM_Y=32'd0,EX_MEM_B=32'd0,EX_MEM_WA=32'd0;
-reg [31:0]MEM_WB_MDR=32'd0,MEM_WB_Y=32'd0,MEM_WB_WA=32'd0;
+reg [31:0]EX_MEM_NPC=32'd0,EX_MEM_Y=32'd0,EX_MEM_B=32'd0;
+reg [31:0]MEM_WB_MDR=32'd0,MEM_WB_Y=32'd0;
+
+reg EX_MEM_ZF=1'd0;
+reg [4:0]EX_MEM_WA=5'd0,MEM_WB_WA=5'd0;
+
 
 //control regs
-wire
+reg [1:0]ID_EX_WB=2'd0,EX_MEM_WB=2'd0,MEM_WB_WB=2'd0;
+reg [2:0]ID_EX_M=3'd0,EX_MEM_M=3'd0;
+reg [4:0]ID_EX_EX=5'd0;
 
 wire [31:0]alu_result;
 wire [31:0]write_reg_data,read_reg_data_1,read_reg_data_2;
 wire [31:0]read_mem_data;
 wire [31:0]alu_in_1,alu_in_2;
 wire [4:0]write_reg_addr;
-//WB
+
+
 reg RegWrite,MemtoReg;
-//M
-reg Branch,MemRead,MemWrite;
-wire PCSource;
-//EX
+wire PCSrc;
+wire Branch,MemRead,MemWrite;
 reg RegDst,ALUSrc;
 reg [2:0]ALUOp;
 
-
+wire [31:0]instruction;
 reg [2:0]ALUm;
-wire [31:0]pc_jump,pc_next;
-wire [31:0]ins_15_0_sext,ins_15_0_sext_shift_2;
-wire [8:0]mem_addr;
-wire [5:0]Op;
+wire [31:0]pc_plus,pc_next;
 
 //dbg TODO
-assign status={PCSource,PCwe,IorD,MemWrite,IRWrite,RegDst,MemtoReg,RegWrite,ALUm,ALUSrcA,ALUSrcB,ALUZero};
+/*
+assign status={PCSrc,PCwe,IorD,MemWrite,IRWrite,RegDst,MemtoReg,RegWrite,ALUm,ALUSrcA,ALUSrcB,Zero};
 always @(*) begin
     case (i_sel)
         3'd1: o_sel_data=PC;
@@ -52,7 +55,10 @@ always @(*) begin
         3'd7: o_sel_data=read_mem_data;//?
         default: begin end
     endcase
-end
+end*/
+
+//instruction rom
+dist_rom ins_rom(.a(pc[9:2]), .spo(instruction));
 
 //reg file
 register_file #(32) my_rf(.clk(clk), .ra0(IF_ID_IR[25:21]), .rd0(read_reg_data_1), .ra1(IF_ID_IR[20:16]), .rd1(read_reg_data_2), .wa(MEM_WB_WA), .we(RegWrite), .wd(write_reg_data),.dbgra(m_rf_addr[4:0]),.dbgrd(rf_data));
@@ -75,12 +81,12 @@ localparam IDLE=4'd10;
 localparam IEX=4'd11;
 localparam IRC=4'd12;
 
-localparam LW=6'b100011;
-localparam SW=6'b101011;
-localparam ADD=6'b000000;
+localparam LW=  6'b100011;
+localparam SW=  6'b101011;
+localparam ADD= 6'b000000;
 localparam ADDI=6'b001000;
-localparam BEQ=6'b000100;
-localparam J=6'b000010;
+localparam BEQ= 6'b000100;
+localparam J=   6'b000010;
 
 assign Op=IR[31:26];
 
@@ -89,21 +95,29 @@ always @(*) begin
     {RegWrite,MemtoReg,Branch,MemRead,MemWrite,RegDst,ALUOp,ALUSrc}=10'd0;
     if(!rst)
         case (IF_ID_IR[31:26])
-            : 
+            6'b100011:
+            6'b101011:
+            6'b000000:
+            6'b001000:
+            6'b000100:
+            6'b000010: 
             default: 
         endcase
 end
 
+assign {RegDst,ALUOp,ALUSrc}=ID_EX_EX;
+assign {Branch,MemRead,MemWrite}=EX_MEM_M;
+assign {RegWrite,MemtoReg}=MEM_WB_WB;
+
 //alu
-mux_1 #(32) alu_in_1_mux(.i_sel(ALUSrcA),.num0(PC),.num1(A),.o_m(alu_in_1));
-mux_2 #(32) alu_in_2_mux(.i_sel(ALUSrcB),.num0(B),.num1(32'd4),.num2(ins_15_0_sext),.num3(ins_15_0_sext_shift_2),.o_m(alu_in_2));
+mux_1 #(32) alu_in_2_mux(.i_sel(ALUSrc),.num0(ID_EX_B),.num1(ID_EX_IMMI),.o_m(alu_in_2));
 assign ins_15_0_sext={{16{IR[15]}},IR[15:0]};
 assign ins_15_0_sext_shift_2={ins_15_0_sext[29:0],2'd0};
 
-alu #(32) arith_ALU(.y(alu_result),.zf(ALUZero),.a(alu_in_1),.b(alu_in_2),.m(ALUm));
+alu #(32) arith_ALU(.y(alu_result),.zf(Zero),.a(ID_EX_A),.b(alu_in_2),.m(ALUm));
 
 //alu control
-
+//TODO
 localparam m_ADD=3'b000;
 localparam m_SUB=3'b001;
 localparam m_AND=3'b010;
@@ -129,49 +143,81 @@ always @(*) begin
 end
 
 //TODO MemRead
-//ins&data memory
-mux_1 #(9) mem_addr_mux(.i_sel(IorD),.num0(PC[10:2]),.num1(ALUOut[10:2]),.o_m(mem_addr));
-dist_mem I_D_ram(.clk(clk), .we(MemWrite), .d(B), .a(mem_addr), .spo(read_mem_data), .dpra(m_rf_addr[10:2]), .dpo(m_data));
+//data memory
+dist_mem data_ram(.clk(clk), .we(MemWrite), .d(EX_MEM_B), .a(EX_MEM_Y[9:2]), .spo(read_mem_data), .dpra(m_rf_addr[9:2]), .dpo(m_data));
 
 //pc mux
-mux_2 #(32) pc_mux(.i_sel(PCSource),.num0(alu_result),.num1(ALUOut),.num2(pc_jump),.o_m(pc_next));
-assign pc_jump={PC[31:28],IR[25:0],2'd0};
+mux_1 #(32) pc_mux(.i_sel(PCSrc),.num0(pc_plus),.num1(EX_MEM_NPC),.o_m(pc_next));
+assign pc_plus=PC+32'd4;
 
 //pc
-assign PCwe=PCWrite|(ALUZero&PCWriteCond);
 always @(posedge clk or posedge rst) begin
     if(rst) begin
         PC<=32'd0;
     end
-    else
-        if(PCwe)
-            PC<=pc_next;
+    else PC<=pc_next;
 end
 
-//IR
+//IF-ID
 always @(posedge clk or posedge rst) begin
     if(rst) begin
-        IR<=32'd0;
-    end
-    else
-        if(IRWrite)
-            IR<=read_mem_data;
-end
-
-//other reg
-always @(posedge clk or posedge rst) begin
-    if(rst) begin
-        MemoryDataRegister<=32'd0;
-        A<=32'd0;
-        B<=32'd0;
-        ALUOut<=32'd0;
+        IF_ID_NPC<=32'd0;
+        IF_ID_IR<=32'd0;
     end
     else begin
-        MemoryDataRegister<=read_mem_data;
-        A<=read_reg_data_1;
-        B<=read_reg_data_2;
-        ALUOut<=alu_result;
+        IF_ID_NPC<=pc_plus;
+        IF_ID_IR<=instruction;
     end
 end
 
+//ID-EX
+always @(posedge clk or posedge rst) begin
+    if(rst) begin
+        ID_EX_NPC<=32'd0;
+        ID_EX_IR<=32'd0;
+        ID_EX_A<=32'd0;
+        ID_EX_B<=32'd0;
+        ID_EX_IMMI<=32'd0;
+    end
+    else begin
+        ID_EX_NPC<=IF_ID_NPC;
+        ID_EX_IR<=IF_ID_IR;
+        ID_EX_A<= read_reg_data_1;
+        ID_EX_B<= read_reg_data_2;
+        ID_EX_IMMI<={{16{IF_ID_IR[15]}},{IF_ID_IR[15:0]}};
+    end
+end
+
+//EX-MEM
+always @(posedge clk or posedge rst) begin
+    if(rst) begin
+        EX_MEM_NPC<=32'd0;
+        EX_MEM_ZF<=1'd0;
+        EX_MEM_Y<=32'd0;
+        EX_MEM_B<=32'd0;
+        EX_MEM_WA<=5'd0;
+    end
+    else begin
+        EX_MEM_NPC<=ID_EX_NPC+{ID_EX_IMMI[29:0],2'd0};
+        EX_MEM_ZF<=Zero;
+        EX_MEM_Y<=alu_result;
+        EX_MEM_B<=ID_EX_B;
+        EX_MEM_WA<=write_reg_addr;
+    end
+end
+assign PCSrc=Branch&EX_MEM_ZF;
+
+//MEM-WB
+always @(posedge clk or posedge rst) begin
+    if(rst) begin
+        MEM_WB_MDR<=32'd0;
+        MEM_WB_Y<=32'd0;
+        MEM_WB_WA<=5'd0;
+    end
+    else begin
+        MEM_WB_MDR<=read_mem_data;
+        MEM_WB_Y<=EX_MEM_Y;
+        MEM_WB_WA<=EX_MEM_WA;
+    end
+end
 endmodule
