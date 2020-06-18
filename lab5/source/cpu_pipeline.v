@@ -14,7 +14,6 @@ reg [31:0]IF_ID_NPC=32'd0,IF_ID_IR=32'd0;
 reg [31:0]ID_EX_NPC=32'd0,ID_EX_IR=32'd0,ID_EX_A=32'd0,ID_EX_B=32'd0,ID_EX_IMMI=32'd0;
 reg [31:0]EX_MEM_NPC=32'd0,EX_MEM_Y=32'd0,EX_MEM_B=32'd0;
 reg [31:0]MEM_WB_MDR=32'd0,MEM_WB_Y=32'd0;
-
 reg EX_MEM_ZF=1'd0;
 reg [4:0]EX_MEM_WA=5'd0,MEM_WB_WA=5'd0;
 
@@ -24,6 +23,11 @@ reg [1:0]ID_EX_WB=2'd0,EX_MEM_WB=2'd0,MEM_WB_WB=2'd0;
 reg [2:0]ID_EX_M=3'd0,EX_MEM_M=3'd0;
 reg [4:0]ID_EX_EX=5'd0;
 
+wire [1:0]wb_wire;
+wire [2:0]m_wire;
+wire [4:0]ex_wire;
+
+//
 wire [31:0]alu_result;
 wire [31:0]write_reg_data,read_reg_data_1,read_reg_data_2;
 wire [31:0]read_mem_data;
@@ -31,14 +35,13 @@ wire [31:0]alu_in_1,alu_in_2;
 wire [4:0]write_reg_addr;
 
 
-reg RegWrite,MemtoReg;
-wire PCSrc;
+wire RegWrite,MemtoReg;
 wire Branch,MemRead,MemWrite;
+wire PCSrc;
 reg RegDst,ALUSrc;
 reg [2:0]ALUOp;
-
-wire [31:0]instruction;
 reg [2:0]ALUm;
+wire [31:0]instruction;
 wire [31:0]pc_plus,pc_next;
 
 //dbg TODO
@@ -67,40 +70,37 @@ mux_1 #(5) write_register_addr_mux(.i_sel(RegDst),.num0(ID_EX_IR[20:16]),.num1(I
 mux_1 #(32) write_register_data_mux(.i_sel(MemtoReg),.num0(MEM_WB_Y),.num1(MEM_WB_MDR),.o_m(write_reg_data));
 
 //control
-localparam IF=4'd0;
-localparam ID=4'd1;
-localparam MC=4'd2;
-localparam MAR=4'd3;
-localparam WBS=4'd4;
-localparam MAW=4'd5;
-localparam REX=4'd6;
-localparam RRC=4'd7;
-localparam BC=4'd8;
-localparam JC=4'd9;
-localparam IDLE=4'd10;
-localparam IEX=4'd11;
-localparam IRC=4'd12;
-
-localparam LW=  6'b100011;
-localparam SW=  6'b101011;
-localparam ADD= 6'b000000;
-localparam ADDI=6'b001000;
-localparam BEQ= 6'b000100;
-localparam J=   6'b000010;
-
-assign Op=IR[31:26];
+//opcode
+localparam LW   =   6'b100011;
+localparam SW   =   6'b101011;
+localparam ADD  =   6'b000000;
+localparam ADDI =   6'b001000;
+localparam BEQ  =   6'b000100;
+localparam J    =   6'b000010;
 
 
 always @(*) begin
-    {RegWrite,MemtoReg,Branch,MemRead,MemWrite,RegDst,ALUOp,ALUSrc}=10'd0;
+    {wb_wire,m_wire,ex_wire}=10'd0;
     if(!rst)
         case (IF_ID_IR[31:26])
-            6'b100011:
-            6'b101011:
-            6'b000000:
-            6'b001000:
-            6'b000100:
-            6'b000010: 
+            LW  :begin
+                {wb_wire,m_wire,ex_wire}={1'b1,1'b1,1'b0,1'b1,1'b0,1'b0,3'b,1'b1};
+            end
+            SW  :begin
+                {wb_wire,m_wire,ex_wire}={1'b0,1'b0,1'b0,1'b0,1'b1,1'b0,3'b,1'b1};
+            end
+            ADD :begin
+                {wb_wire,m_wire,ex_wire}={1'b1,1'b0,1'b0,1'b0,1'b0,1'b1,3'b,1'b0};
+            end
+            ADDI:begin
+                {wb_wire,m_wire,ex_wire}={1'b1,1'b0,1'b0,1'b0,1'b0,1'b0,3'b,1'b1};
+            end
+            BEQ :begin
+                {wb_wire,m_wire,ex_wire}={1'b0,1'b0,1'b1,1'b0,1'b0,1'b0,3'b,1'b0};
+            end
+            J   :begin
+                {wb_wire,m_wire,ex_wire}={1'b0,1'b0,1'b1,1'b0,1'b0,1'b0,3'b,1'b1};
+            end
             default: 
         endcase
 end
@@ -129,10 +129,10 @@ always @(*) begin
         3'b00:ALUm=m_ADD;
         3'b01:ALUm=m_SUB;
         3'b10:begin
-            case (IR[5:0])
+            case (ID_EX_IR[5:0])
                 6'b100000:ALUm=m_ADD; 
                 default: begin
-                    
+                    ALUm=3'b101;
                 end
             endcase
         end
@@ -154,8 +154,10 @@ assign pc_plus=PC+32'd4;
 always @(posedge clk or posedge rst) begin
     if(rst) begin
         PC<=32'd0;
+    end 
+    else begin
+        PC<=pc_next;
     end
-    else PC<=pc_next;
 end
 
 //IF-ID
@@ -178,6 +180,9 @@ always @(posedge clk or posedge rst) begin
         ID_EX_A<=32'd0;
         ID_EX_B<=32'd0;
         ID_EX_IMMI<=32'd0;
+        ID_EX_WB<=2'd0;
+        ID_EX_M<=3'd0;
+        ID_EX_EX<=5'd0;
     end
     else begin
         ID_EX_NPC<=IF_ID_NPC;
@@ -185,6 +190,9 @@ always @(posedge clk or posedge rst) begin
         ID_EX_A<= read_reg_data_1;
         ID_EX_B<= read_reg_data_2;
         ID_EX_IMMI<={{16{IF_ID_IR[15]}},{IF_ID_IR[15:0]}};
+        ID_EX_WB<=wb_wire;
+        ID_EX_M<=m_wire;
+        ID_EX_EX<=ex_wire;
     end
 end
 
@@ -196,6 +204,8 @@ always @(posedge clk or posedge rst) begin
         EX_MEM_Y<=32'd0;
         EX_MEM_B<=32'd0;
         EX_MEM_WA<=5'd0;
+        EX_MEM_WB<=2'd0;
+        EX_MEM_M<=3'd0;
     end
     else begin
         EX_MEM_NPC<=ID_EX_NPC+{ID_EX_IMMI[29:0],2'd0};
@@ -203,6 +213,8 @@ always @(posedge clk or posedge rst) begin
         EX_MEM_Y<=alu_result;
         EX_MEM_B<=ID_EX_B;
         EX_MEM_WA<=write_reg_addr;
+        EX_MEM_WB<=ID_EX_WB;
+        EX_MEM_M<=ID_EX_M;
     end
 end
 assign PCSrc=Branch&EX_MEM_ZF;
@@ -213,11 +225,13 @@ always @(posedge clk or posedge rst) begin
         MEM_WB_MDR<=32'd0;
         MEM_WB_Y<=32'd0;
         MEM_WB_WA<=5'd0;
+        MEM_WB_WB<=2'd0;
     end
     else begin
         MEM_WB_MDR<=read_mem_data;
         MEM_WB_Y<=EX_MEM_Y;
         MEM_WB_WA<=EX_MEM_WA;
+        MEM_WB_WB<=EX_MEM_WB;
     end
 end
 endmodule
