@@ -6,7 +6,7 @@ module mycpu_multi_tb;
     parameter PERIOD = 10;
     parameter CYCLE = 80;
      
-    cpu_multi_cycle my_cpu(.clk(clk), .rst(rst));
+    cpu_multi_cycle_good my_cpu(.clk(clk), .rst(rst));
     
     initial
     begin

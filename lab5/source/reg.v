@@ -25,6 +25,14 @@ always @(*) begin
     reg_rd0=reg_storage[ra0];
     reg_rd1=reg_storage[ra1];
     reg_dbg=reg_storage[dbgra];
+    if(we&&wa!=5'd0) begin
+        if(ra0==wa)
+            reg_rd0=wd;
+        if(ra1==wa)
+            reg_rd1=wd;
+        if(dbgra==wa)
+            reg_dbg=wd;
+    end
 end
 always @(posedge clk ) begin
     if(we) begin
