@@ -1,13 +1,15 @@
-module cpu_multi_cycle_good	//单周期CPU
+module cpu_pipeline	//单周期CPU
 (input clk,			//时钟（上升沿有效）
 input rst,				//异步复位，高电平有效
-output [15:0]status,
 output [31:0]m_data,rf_data,
 input [15:0]m_rf_addr,
-input [2:0]i_sel0,
-input [1:0]i_sel1,
-output reg [31:0]o_sel_data
+input input_flag,
+input [31:0]input_data,
+output output_flag,
+output [31:0]output_data,
+input output_finish_flag
 );
+
 
 //pipeline regs
 reg [31:0]PC=32'd0;
@@ -53,31 +55,6 @@ reg [1:0]forward_sel_a=2'd0,forward_sel_b=2'd0;
 
 //branch sig
 reg clear_IF_ID=1'b0,clear_ID_EX=1'b0;
-
-//dbg TODO
-
-//assign status={PCSrc,PCwe,IorD,MemWrite,IRWrite,RegDst,MemtoReg,RegWrite,ALUm,ALUSrcA,ALUSrcB,Zero};
-always @(*) begin
-    case (i_sel0)
-        3'd1: o_sel_data=PC;
-        3'd2: begin
-            case (i_sel1)
-                2'd0: o_sel_data=IF_ID_NPC;
-                2'd1: o_sel_data=IF_ID_IR;
-            endcase
-        end 
-        3'd3: 
-            case (i_sel1)
-                2'd0: o_sel_data=ID_EX_NPC;
-                2'd1: o_sel_data=ID_EX_IR;
-            endcase/*
-        3'd4: o_sel_data=A;
-        3'd5: o_sel_data=B;
-        3'd6: o_sel_data=ALUOut;
-        3'd7: o_sel_data=read_mem_data;//?*/
-        default: begin end
-    endcase
-end
 
 //opcode
 localparam LW   =   6'b100011;
@@ -226,7 +203,10 @@ end
 
 //TODO MemRead
 //data memory
-dist_ram data_ram(.clk(clk), .we(MemWrite), .d(EX_MEM_B), .a(EX_MEM_Y[9:2]), .spo(read_mem_data), .dpra(m_rf_addr[9:2]), .dpo(m_data));
+data_mem_with_IO data_ram_IO(.clk(clk), .rst(rst), .we(MemWrite), .re(MemRead),
+        .d(EX_MEM_B), .a(EX_MEM_Y[9:2]), .spo(read_mem_data), .dpra(m_rf_addr[9:2]), .dpo(m_data),
+        .input_flag(input_flag),.input_data(input_data),
+        .output_flag(output_flag),.output_data(output_data),.output_finish_flag(output_finish_flag));
 
 //pc mux
 mux_2 #(32) pc_mux(.i_sel(PCSrc),.num0(pc_plus),.num1(pc_j),.num2(pc_br),.o_m(pc_next));
