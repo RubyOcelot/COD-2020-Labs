@@ -27,12 +27,18 @@ module top_unit_tb;
         rst = 0;
         m_rf = 0;
         m_rf_addr=0;
-        #(PERIOD*80)
+        #(PERIOD*50)
         #(PERIOD)
         m_rf_addr=16'd8;
         #(PERIOD*5)
         m_rf=1;
-        m_rf_addr=16'd8;
+        m_rf_addr=16'd9;
+        #(PERIOD*5)
+        m_rf_addr=16'd0;
+        repeat(32)begin
+            #(PERIOD)
+            m_rf_addr=m_rf_addr+16'd1;
+        end
 
     end
 
