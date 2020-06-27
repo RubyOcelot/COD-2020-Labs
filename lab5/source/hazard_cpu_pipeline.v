@@ -4,7 +4,8 @@ input rst,				//异步复位，高电平有效
 output [15:0]status,
 output [31:0]m_data,rf_data,
 input [15:0]m_rf_addr,
-input [2:0]i_sel,
+input [2:0]i_sel0,
+input [1:0]i_sel1,
 output reg [31:0]o_sel_data
 );
 
@@ -54,20 +55,29 @@ reg [1:0]forward_sel_a=2'd0,forward_sel_b=2'd0;
 reg clear_IF_ID=1'b0,clear_ID_EX=1'b0;
 
 //dbg TODO
-/*
-assign status={PCSrc,PCwe,IorD,MemWrite,IRWrite,RegDst,MemtoReg,RegWrite,ALUm,ALUSrcA,ALUSrcB,Zero};
+
+//assign status={PCSrc,PCwe,IorD,MemWrite,IRWrite,RegDst,MemtoReg,RegWrite,ALUm,ALUSrcA,ALUSrcB,Zero};
 always @(*) begin
-    case (i_sel)
+    case (i_sel0)
         3'd1: o_sel_data=PC;
-        3'd2: o_sel_data=IR;
-        3'd3: o_sel_data=MemoryDataRegister;
+        3'd2: begin
+            case (i_sel1)
+                2'd0: o_sel_data=IF_ID_NPC;
+                2'd1: o_sel_data=IF_ID_IR;
+            endcase
+        end 
+        3'd3: 
+            case (i_sel1)
+                2'd0: o_sel_data=ID_EX_NPC;
+                2'd1: o_sel_data=ID_EX_IR;
+            endcase/*
         3'd4: o_sel_data=A;
         3'd5: o_sel_data=B;
         3'd6: o_sel_data=ALUOut;
-        3'd7: o_sel_data=read_mem_data;//?
+        3'd7: o_sel_data=read_mem_data;//?*/
         default: begin end
     endcase
-end*/
+end
 
 //opcode
 localparam LW   =   6'b100011;

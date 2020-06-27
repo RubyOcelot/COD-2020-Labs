@@ -23,18 +23,18 @@ _test1:
     lw $t2, 4($0)       # $t2 = MEM[1]  44
     lw $t3, 8($0)       # $t3 = MEM[2]  48
     add $t4, $t2, $t3                   52
-    sw $t4, 0($0)       # MEM[0] = $t4
-    lw $t5, 0($0)       # $t5 = MEM[0]
-    lw $t6, 12($0)      # $t6 = MEM[3]
-    beq $t5, $t6, _next1
-    j _fail
+    sw $t4, 0($0)       # MEM[0] = $t4  56
+    lw $t5, 0($0)       # $t5 = MEM[0]  60
+    lw $t6, 12($0)      # $t6 = MEM[3]  64
+    beq $t5, $t6, _next1                68
+    j _fail                             72
 	
 _next1:
-    addi $t1, $t1, 1
-    j _success
+    addi $t1, $t1, 1                    76
+    j _success                          80
 
 _fail:
-    j _fail
+    j _fail                             84
 
 _success: 
-    j _success   # if success: $t1 == 2
+    j _success   # if success: $t1 == 2 88

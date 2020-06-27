@@ -79,7 +79,7 @@ end
 
 //run
 assign clkd=clk&run;
-cpu_multi_cycle my_cpu(.clk(clkd), .rst(rst),.status(status),.m_data(m_data),.rf_data(rf_data),.m_rf_addr(m_rf_addr),.i_sel(sel),.o_sel_data(selected_data));
+cpu_multi_cycle_good my_cpu(.clk(clkd), .rst(rst),.status(status),.m_data(m_data),.rf_data(rf_data),.m_rf_addr(m_rf_addr),.i_sel1(sel),.o_sel_data(selected_data));
 
 
 assign m_rf_addr=(m_rf)?m_addr:rf_addr;

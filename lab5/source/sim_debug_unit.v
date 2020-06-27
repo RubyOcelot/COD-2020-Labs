@@ -6,7 +6,7 @@ module debug_unit_tb;
     reg [2:0]sel;
     
     parameter PERIOD = 10;
-    parameter CYCLE = 250;
+    parameter CYCLE = 500;
      
     debug_unit my_dbg_unit(.clk(clk), .rst(rst),.sel(sel),.succ(succ),.step(step),.m_rf(m_rf),.inc(inc));
     
@@ -27,9 +27,9 @@ module debug_unit_tb;
         succ = 1;
         #(PERIOD*80)
         succ = 0;
-        m_rf=1;
+        m_rf=0;
         
-        repeat (8) begin
+        repeat (9) begin
             #(PERIOD)
             inc=1;
             #(PERIOD)
@@ -54,8 +54,8 @@ module debug_unit_tb;
             sel = sel+3'd1;
         end
 
-        m_rf=1;
-        repeat (8) begin
+        m_rf=0;
+        repeat (9) begin
             #(PERIOD)
             inc=1;
             #(PERIOD)
