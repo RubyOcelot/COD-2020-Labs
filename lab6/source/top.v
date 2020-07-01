@@ -24,7 +24,12 @@ wire input_flag;
 reg [31:0]input_data=32'd0;
 reg output_finish_flag=1'd0;
 wire output_flag;
-wire [31:0]output_data=32'd0;
+wire [31:0]output_data;
+
+//bus
+wire [31:0]bus_din,bus_dout;
+wire [7:0]bus_addr;
+wire bus_r,bus_w;
 
 /*
 //seg
@@ -91,9 +96,15 @@ end
 
 //run
 cpu_pipeline my_cpu(.clk(clk), .rst(rst),
-        .m_data(m_data),.rf_data(rf_data),.m_rf_addr(m_rf_addr),
+        .rf_data(rf_data),.m_rf_addr(m_rf_addr),
+        .bus_din(bus_din),.bus_addr(bus_addr),.bus_dout(bus_dout),.bus_r(bus_r),.bus_w(bus_w));
+
+//bus
+bus ram_IO(.clk(clk), .rst(rst), .we(bus_w), .re(bus_r),
+        .d(bus_dout), .a(bus_addr), .spo(bus_din), .dpra(m_rf_addr[9:2]), .dpo(m_data),
         .input_flag(input_flag),.input_data(input_data),
-        .output_flag(output_flag),.output_data(output_data),.output_finish_flag(output_finish_flag));
+        .output_flag(output_flag),.output_data(output_data),
+        .output_finish_flag(output_finish_flag));
 
 
 //led TODO

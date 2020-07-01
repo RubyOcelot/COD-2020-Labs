@@ -1,13 +1,14 @@
 module cpu_pipeline	//单周期CPU
 (input clk,			//时钟（上升沿有效）
 input rst,				//异步复位，高电平有效
-output [31:0]m_data,rf_data,
+output [31:0]rf_data,
 input [15:0]m_rf_addr,
 input input_flag,
-input [31:0]input_data,
-output output_flag,
-output [31:0]output_data,
-input output_finish_flag
+input [31:0]bus_din,
+output [7:0]bus_addr,
+output [31:0]bus_dout,
+output bus_r,
+output bus_w
 );
 
 
@@ -24,15 +25,15 @@ reg [4:0]EX_MEM_WA=5'd0,MEM_WB_WA=5'd0;
 //control regs
 reg [1:0]ID_EX_WB=2'd0,EX_MEM_WB=2'd0,MEM_WB_WB=2'd0;
 reg [2:0]ID_EX_M=3'd0,EX_MEM_M=3'd0;
-reg [5:0]ID_EX_EX=6'd0;
+reg [6:0]ID_EX_EX=7'd0;
 reg EX_MEM_J=1'd0;
 
 reg [1:0]wb_ctrl;
 reg [2:0]m_ctrl;
-reg [5:0]ex_ctrl;
+reg [6:0]ex_ctrl;
 
 //
-wire [31:0]alu_result;
+wire [31:0]alu_result,ex_result,cmp_result,shift_result;
 wire [31:0]write_reg_data,read_reg_data_1,read_reg_data_2;
 wire [31:0]read_mem_data;
 wire [31:0]real_reg_a,real_reg_b,alu_in_2;
@@ -45,10 +46,11 @@ reg [1:0]PCSrc;
 wire RegDst,ALUSrc;
 wire [2:0]ALUOp;
 reg [2:0]ALUm;
-wire Zero;
+wire Zero,of,sf;
 wire [31:0]instruction;
 wire [31:0]pc_plus,pc_next;
 wire [31:0]pc_br,pc_j;
+wire ALUCmp,Shift;
 
 //forward
 reg [1:0]forward_sel_a=2'd0,forward_sel_b=2'd0;
@@ -57,24 +59,25 @@ reg [1:0]forward_sel_a=2'd0,forward_sel_b=2'd0;
 reg clear_IF_ID=1'b0,clear_ID_EX=1'b0;
 
 //opcode
-localparam LW   =   6'b100011;
-localparam SW   =   6'b101011;
-localparam ADD  =   6'b000000;
-localparam ADDI =   6'b001000;
-localparam BEQ  =   6'b000100;
-localparam J    =   6'b000010;
+localparam OP_RTYPE=   6'b000000;
+localparam OP_LW   =   6'b100011;
+localparam OP_SW   =   6'b101011;
+localparam OP_ADDI =   6'b001000;
+localparam OP_BEQ  =   6'b000100;
+localparam OP_BNE  =   6'b000101;
+localparam OP_J    =   6'b000010;
 
 //branch control unit
 always @(*) begin
     clear_IF_ID=1'b0;
     clear_ID_EX=1'b0;
     PCSrc=2'b0;
-    if(ID_EX_IR[31:26]==BEQ&Zero)begin
+    if((ID_EX_IR[31:26]==OP_BEQ&Zero)||(ID_EX_IR[31:26]==OP_BNE&(!Zero)))begin
         clear_IF_ID=1'b1;
         clear_ID_EX=1'b1;
         PCSrc=2'd2;
     end
-    else if(IF_ID_IR[31:26]==J) begin
+    else if(IF_ID_IR[31:26]==OP_J) begin
         clear_IF_ID=1'b1;
         PCSrc=2'd1;
     end
@@ -138,26 +141,26 @@ localparam ALUOP_FUNCT    =3'd2;
 localparam ALUOP_NOP      =3'd0;
 
 always @(*) begin
-    {wb_ctrl,m_ctrl,ex_ctrl}=11'd0;
+    {wb_ctrl,m_ctrl,ex_ctrl}=12'd0;
     if(!rst)
         case (IF_ID_IR[31:26])
-            LW  :begin
-                {wb_ctrl,m_ctrl,ex_ctrl}={1'b1,1'b1,1'b0,1'b1,1'b0,1'b0,1'b0,ALUOP_ADD,1'b1};
+            OP_LW  :begin
+                {wb_ctrl,m_ctrl,ex_ctrl}={1'b1,1'b1,1'b0,1'b1,1'b0,1'b0,1'b0,ALUOP_ADD,1'b1,1'b0};
             end
-            SW  :begin
-                {wb_ctrl,m_ctrl,ex_ctrl}={1'b0,1'b0,1'b0,1'b0,1'b1,1'b0,1'b0,ALUOP_ADD,1'b1};
+            OP_SW  :begin
+                {wb_ctrl,m_ctrl,ex_ctrl}={1'b0,1'b0,1'b0,1'b0,1'b1,1'b0,1'b0,ALUOP_ADD,1'b1,1'b0};
             end
-            ADD :begin
-                {wb_ctrl,m_ctrl,ex_ctrl}={1'b1,1'b0,1'b0,1'b0,1'b0,1'b0,1'b1,ALUOP_FUNCT,1'b0};
+            OP_RTYPE:begin
+                {wb_ctrl,m_ctrl,ex_ctrl}={1'b1,1'b0,1'b0,1'b0,1'b0,1'b0,1'b1,ALUOP_FUNCT,1'b0,~|(IF_ID_IR[5:0]^func_SLT)};
             end
-            ADDI:begin
-                {wb_ctrl,m_ctrl,ex_ctrl}={1'b1,1'b0,1'b0,1'b0,1'b0,1'b0,1'b0,ALUOP_ADD,1'b1};
+            OP_ADDI:begin
+                {wb_ctrl,m_ctrl,ex_ctrl}={1'b1,1'b0,1'b0,1'b0,1'b0,1'b0,1'b0,ALUOP_ADD,1'b1,1'b0};
             end
-            BEQ :begin
-                {wb_ctrl,m_ctrl,ex_ctrl}={1'b0,1'b0,1'b1,1'b0,1'b0,1'b0,1'b0,ALUOP_SUB,1'b0};
+            OP_BEQ, OP_BNE :begin
+                {wb_ctrl,m_ctrl,ex_ctrl}={1'b0,1'b0,1'b1,1'b0,1'b0,1'b0,1'b0,ALUOP_SUB,1'b0,1'b0};
             end
-            J   :begin
-                {wb_ctrl,m_ctrl,ex_ctrl}={1'b0,1'b0,1'b1,1'b0,1'b0,1'b1,1'b0,ALUOP_NOP,1'b1};
+            OP_J   :begin
+                {wb_ctrl,m_ctrl,ex_ctrl}={1'b0,1'b0,1'b1,1'b0,1'b0,1'b1,1'b0,ALUOP_NOP,1'b1,1'b0};
             end
             default: begin
             
@@ -165,14 +168,19 @@ always @(*) begin
         endcase
 end
 
-assign {Jump,RegDst,ALUOp,ALUSrc}=ID_EX_EX;
+assign {Jump,RegDst,ALUOp,ALUSrc,ALUCmp}=ID_EX_EX;
 assign {Branch,MemRead,MemWrite}=EX_MEM_M;
 assign {RegWrite,MemtoReg}=MEM_WB_WB; 
 
 //alu
 mux_1 #(32) alu_in_2_mux(.i_sel(ALUSrc),.num0(real_reg_b),.num1(ID_EX_IMMI),.o_m(alu_in_2));
 
-alu #(32) arith_ALU(.y(alu_result),.zf(Zero),.a(real_reg_a),.b(alu_in_2),.m(ALUm));
+alu #(32) arith_ALU(.y(alu_result),.zf(Zero),.of(of),.sf(sf),.a(real_reg_a),.b(alu_in_2),.m(ALUm));
+assign cmp_result={31'd0,(~Zero)&(of^sf)};
+shift_unit my_shift(.i_data(real_reg_b),.shamt(ID_EX_IR[10:6]),.type(ID_EX_IR[1:0]),.o_data(shift_result));
+assign Shift=(~|ID_EX_IR[31:26])&(~|(ID_EX_IR[5:2]));
+mux_2 #(32) alu_out_mux(.i_sel({Shift,ALUCmp}),.num0(alu_result),.num1(cmp_result),.num2(shift_result),.o_m(ex_result));
+
 
 //alu control
 //TODO
@@ -181,7 +189,15 @@ localparam m_SUB=3'b001;
 localparam m_AND=3'b010;
 localparam m_OR =3'b011;
 localparam m_XOR=3'b100;
-localparam m_NOP=3'b101;
+localparam m_SLL=3'b101;
+localparam m_SRL=3'b110;
+localparam m_NOP=3'b111;
+
+localparam func_ADD=6'b100000;
+localparam func_SUB=6'b100010;
+localparam func_SLT=6'b101010;
+localparam func_SLL=6'b000000;
+localparam func_SRL=6'b000010;
 
 always @(*) begin
     case (ALUOp)
@@ -189,7 +205,9 @@ always @(*) begin
         ALUOP_SUB   :   ALUm=m_SUB;
         ALUOP_FUNCT :   begin
             case (ID_EX_IR[5:0])
-                6'b100000:ALUm=m_ADD; 
+                func_ADD:ALUm=m_ADD; 
+                func_SUB:ALUm=m_SUB; 
+                func_SLT:ALUm=m_SUB;
                 default: begin
                     ALUm=m_NOP;
                 end
@@ -201,12 +219,12 @@ always @(*) begin
     endcase
 end
 
-//TODO MemRead
 //data memory
-data_mem_with_IO data_ram_IO(.clk(clk), .rst(rst), .we(MemWrite), .re(MemRead),
-        .d(EX_MEM_B), .a(EX_MEM_Y[9:2]), .spo(read_mem_data), .dpra(m_rf_addr[9:2]), .dpo(m_data),
-        .input_flag(input_flag),.input_data(input_data),
-        .output_flag(output_flag),.output_data(output_data),.output_finish_flag(output_finish_flag));
+assign bus_w=MemWrite;
+assign bus_r=MemRead;
+assign bus_addr=EX_MEM_Y[9:2];
+assign bus_dout=EX_MEM_B;
+assign read_mem_data=bus_din;
 
 //pc mux
 mux_2 #(32) pc_mux(.i_sel(PCSrc),.num0(pc_plus),.num1(pc_j),.num2(pc_br),.o_m(pc_next));
@@ -278,7 +296,7 @@ always @(posedge clk or posedge rst) begin
         EX_MEM_M<=3'd0;
     end
     else begin
-        EX_MEM_Y<=alu_result;
+        EX_MEM_Y<=ex_result;
         EX_MEM_B<=real_reg_b;
         EX_MEM_WA<=write_reg_addr;
         EX_MEM_WB<=ID_EX_WB;

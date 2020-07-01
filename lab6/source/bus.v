@@ -1,4 +1,4 @@
-module data_mem_with_IO	//单周期CPU
+module bus	//单周期CPU
 (input clk,			//时钟（上升沿有效）
 input rst,				//异步复位，高电平有效
 input we,
@@ -11,11 +11,13 @@ output [31:0]dpo,
 input input_flag,
 input [31:0]input_data,
 output output_flag,
-output reg [31:0]output_data,
+output [31:0]output_data,
 input output_finish_flag
 );
 reg input_flag_r=1'b0,output_flag_r=1'b0;
 reg [31:0]input_data_r=32'd0,output_data_r=32'd0;
+
+//IO
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         input_flag_r<=1'b0;
@@ -24,11 +26,12 @@ always @(posedge clk or posedge rst) begin
     else begin
         if (input_flag) begin
             input_flag_r<=1'b1;
-            input_data_r<=input_data_r;
+            input_data_r<=input_data;
         end
+        /*
         if(output_finish_flag) begin
             output_flag_r<=1'b0;
-        end
+        end*/
     end
 end
 
@@ -36,6 +39,7 @@ localparam OUT_FLAG =8'hfe;
 localparam OUT_DATA =8'hff;
 localparam IN_FLAG  =8'hfc;
 localparam IN_DATA  =8'hfd;
+//1 is busy 0 is avaliable
 
 reg [31:0]spo_r=32'd0,dpo_r=32'd0;
 wire [31:0]spo_mem,dpo_mem;
@@ -67,12 +71,15 @@ always @(*) begin
     endcase
 end
 
+//setflag
 assign output_flag=output_flag_r;
+assign output_data=output_data_r;
 always @(posedge clk) begin
+    output_flag_r<=1'b0;
     if(we)
         case (a)
             OUT_DATA:begin
-                output_data<=d;
+                output_data_r<=d;
                 output_flag_r<=1'b1;
             end 
             default: begin
