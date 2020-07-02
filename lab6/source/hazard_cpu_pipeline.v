@@ -1,8 +1,6 @@
 module cpu_pipeline	//单周期CPU
 (input clk,			//时钟（上升沿有效）
 input rst,				//异步复位，高电平有效
-output [31:0]rf_data,
-input [15:0]m_rf_addr,
 input input_flag,
 input [31:0]bus_din,
 output [7:0]bus_addr,

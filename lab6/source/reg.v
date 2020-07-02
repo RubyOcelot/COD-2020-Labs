@@ -8,15 +8,12 @@ input [4:0] ra1, 				//读端口1地址
 output [WIDTH-1:0] rd1, 	//读端口1数据
 input [4:0] wa, 				//写端口地址
 input we,					//写使能，高电平有效
-input [WIDTH-1:0] wd,		//写端口数据
-input [4:0] dbgra,
-output [WIDTH-1:0] dbgrd
+input [WIDTH-1:0] wd		//写端口数据
 );
 reg [WIDTH-1:0] reg_storage [0:31];
-reg [WIDTH-1:0] reg_rd0, reg_rd1, reg_dbg;
+reg [WIDTH-1:0] reg_rd0, reg_rd1;
 assign rd0=reg_rd0;
 assign rd1=reg_rd1;
-assign dbgrd=reg_dbg;
 
 initial begin
 $readmemh("register_file.vec", reg_storage);
@@ -24,14 +21,11 @@ end
 always @(*) begin
     reg_rd0=reg_storage[ra0];
     reg_rd1=reg_storage[ra1];
-    reg_dbg=reg_storage[dbgra];
     if(we&&wa!=5'd0) begin
         if(ra0==wa)
             reg_rd0=wd;
         if(ra1==wa)
             reg_rd1=wd;
-        if(dbgra==wa)
-            reg_dbg=wd;
     end
 end
 always @(posedge clk ) begin

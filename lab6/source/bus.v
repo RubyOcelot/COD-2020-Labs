@@ -6,13 +6,10 @@ input re,
 input [31:0]d,
 input [7:0]a,
 output [31:0]spo,
-input [7:0]dpra,
-output [31:0]dpo,
 input input_flag,
 input [31:0]input_data,
 output output_flag,
-output [31:0]output_data,
-input output_finish_flag
+output [31:0]output_data
 );
 reg input_flag_r=1'b0,output_flag_r=1'b0;
 reg [31:0]input_data_r=32'd0,output_data_r=32'd0;
@@ -28,10 +25,6 @@ always @(posedge clk or posedge rst) begin
             input_flag_r<=1'b1;
             input_data_r<=input_data;
         end
-        /*
-        if(output_finish_flag) begin
-            output_flag_r<=1'b0;
-        end*/
     end
 end
 
@@ -43,7 +36,7 @@ localparam IN_DATA  =8'hfd;
 
 reg [31:0]spo_r=32'd0,dpo_r=32'd0;
 wire [31:0]spo_mem,dpo_mem;
-dist_ram data_ram(.clk(clk), .we(we), .d(d), .a(a), .spo(spo_mem), .dpra(dpra), .dpo(dpo_mem));
+dist_ram data_ram(.clk(clk), .we(we), .d(d), .a(a), .spo(spo_mem));
 assign spo=spo_r;
 assign dpo=dpo_r;
 always @(*) begin

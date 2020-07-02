@@ -1,8 +1,5 @@
 module top_unit(
     input clk,rst,
-    input m_rf,
-    input [15:0]m_rf_addr,
-    output [15:0]led,
     output [7:0]seg_data,
     output reg [7:0]seg_sel,
     input input_btn,left_btn,right_btn,
@@ -31,7 +28,7 @@ wire [31:0]bus_din,bus_dout;
 wire [7:0]bus_addr;
 wire bus_r,bus_w;
 
-/*
+
 //seg
 ROM_for_seg num0(.a(seg_num[3:0]),.spo(seg_data_all[3'd0]));
 ROM_for_seg num1(.a(seg_num[7:4]),.spo(seg_data_all[3'd1]));
@@ -68,7 +65,7 @@ always @(posedge clk ) begin
     else
         cnt<=20'd0;
 end
-*/
+
 always @(posedge clk or posedge rst) begin
     if(rst)begin
         seg_num<=32'd0;
@@ -96,19 +93,15 @@ end
 
 //run
 cpu_pipeline my_cpu(.clk(clk), .rst(rst),
-        .rf_data(rf_data),.m_rf_addr(m_rf_addr),
         .bus_din(bus_din),.bus_addr(bus_addr),.bus_dout(bus_dout),.bus_r(bus_r),.bus_w(bus_w));
 
 //bus
 bus ram_IO(.clk(clk), .rst(rst), .we(bus_w), .re(bus_r),
-        .d(bus_dout), .a(bus_addr), .spo(bus_din), .dpra(m_rf_addr[9:2]), .dpo(m_data),
+        .d(bus_dout), .a(bus_addr), .spo(bus_din), 
         .input_flag(input_flag),.input_data(input_data),
         .output_flag(output_flag),.output_data(output_data),
         .output_finish_flag(output_finish_flag));
 
-
-//led TODO
-//assign led=(sel>3'd0)?{4'd0,status}:m_rf_addr;
 
 edg input_flag_edg(.clk(clk),.rst(rst),.y(input_btn),.p(input_flag));
 
